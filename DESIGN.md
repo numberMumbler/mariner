@@ -31,6 +31,27 @@ The design and development of Mariner will prioritize scalability and adaptabili
 ### System Context
 
 ```mermaid
+C4Context
+title System Context Diagram for Mariner
+
+Person(user, "User", "Interacts with Mariner to get personalized research summaries.")
+System_Ext(arXiv, "ArXiv Database", "External source of academic articles.")
+System_Ext(gpt, "GPT Service", "External service for summarizing articles.")
+System(mariner, "Mariner", "System that provides personalized research paper summaries.")
+
+Rel(user, mariner, "Uses", "down")
+Rel(mariner, arXiv, "Fetches articles from", "left")
+Rel(mariner, gpt, "Sends articles to for summarization", "right")
+Rel_R(gpt, mariner, "Returns summarized articles to", "right")
+Rel_R(mariner, user, "Provides personalized summaries to", "down")
+
+
+```
+
+TODO: (incorrect markup, but this idea) Directional modifiers like "down", "left", and "right" are used in the Rel commands to guide the arrows’ paths, helping to separate the entities and make the diagram clearer.
+By arranging external systems on either side of Mariner (arXiv to the left and GPT Service to the right), the diagram can visually represent the flow of data in a more organized manner.
+
+```mermaid
 graph TD
     User(User) -->|Accesses Mariner| UI[User Interface]
     UI -->|Requests personalized feed| Personalizer[Personalization Module]
@@ -120,9 +141,10 @@ sequenceDiagram
     participant MarinerDB as Mariner Database
     participant User as User
 
-    ArXiv->>Fetcher: Provides new article
-    Fetcher->>Summarizer: Sends article for summarization
-    Summarizer->>MarinerDB: Stores summarized content
+    Fetcher->>ArXiv: 0. Requests newest articles
+    ArXiv->>Fetcher: 1. Provides new articles
+    Fetcher->>Summarizer: 2. Sends article for summarization
+    Summarizer->>MarinerDB: 3. Stores summarized content
 
     loop Check for updates
         User->>MarinerDB: Visits feed
@@ -136,3 +158,71 @@ In this sequence:
 2. The **Content Fetcher** sends the article to the **Summarization Engine** for processing.
 3. The **Summarization Engine** creates a summary of the article and stores it in the **Mariner Database**.
 4. The **User** visits their feed, which triggers the **Mariner Database** to display the latest article summary.
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant UI as User Interface
+    participant Personalizer as Personalization Module
+    participant Fetcher as Content Fetcher
+    participant Summarizer as Summarization Engine
+    participant DB as Database
+    participant ArXiv as ArXiv Database
+    participant GPT as External GPT Service
+
+    note right of ArXiv: External System
+    note right of GPT: External Service
+
+    User->>+UI: Access Mariner
+    UI->>+Personalizer: Request Content
+    Personalizer->>+DB: Fetch User Preferences
+    DB-->>-Personalizer: User Data
+
+    loop Fetch and Summarize Articles
+        Fetcher->>+ArXiv: Query for new articles
+        ArXiv-->>-Fetcher: Return articles
+        Fetcher->>DB: Store new articles
+
+        Summarizer->>DB: Check for unsummarized articles
+        DB-->>Summarizer: Unsummarized articles
+        Summarizer->>+GPT: Send articles for summarization
+        GPT-->>-Summarizer: Return summaries
+        Summarizer->>DB: Store summaries
+    end
+
+    Personalizer->>DB: Retrieve personalized summaries
+    DB-->>-Personalizer: Summarized Content
+    Personalizer-->>-UI: Personalized Summaries
+    UI-->>-User: Display Summaries
+```
+
+1. **User Accesses Mariner**: The user initiates the process by accessing the Mariner User Interface (UI).
+2. **UI Requests Content**: The UI requests personalized content for the user from the Personalization Module.
+
+3. **Personalization Module Fetches User Preferences**: The Personalization Module queries the Mariner Database to fetch the user's preferences and interaction history.
+
+4. **Database Returns User Data**: The Mariner Database returns the relevant user data to the Personalization Module.
+
+5. **Content Fetcher Queries ArXiv for New Articles**: Periodically, the Content Fetcher queries the ArXiv Database to check for new research articles.
+
+6. **ArXiv Returns Articles**: The ArXiv Database provides the latest articles to the Content Fetcher.
+
+7. **Fetcher Stores New Articles in Database**: The Content Fetcher stores the new articles in the Mariner Database for later processing.
+
+8. **Summarization Engine Checks for Unsummarized Articles**: The Summarization Engine queries the Mariner Database to identify articles that have not yet been summarized.
+
+9. **Database Provides Unsummarized Articles**: The Mariner Database returns the list of unsummarized articles to the Summarization Engine.
+
+10. **Summarization Engine Sends Articles to External GPT Service**: The Summarization Engine sends these articles to an External GPT Service for summarization.
+
+11. **GPT Service Returns Summaries**: The External GPT Service processes the articles and returns their summaries to the Summarization Engine.
+
+12. **Summarizer Stores Summaries in Database**: The Summarization Engine stores the generated summaries in the Mariner Database.
+
+13. **Personalization Module Retrieves Personalized Summaries**: The Personalization Module then retrieves personalized summaries based on the user's preferences and history from the Mariner Database.
+
+14. **Database Provides Summarized Content**: The Mariner Database sends the personalized summaries back to the Personalization Module.
+
+15. **Personalization Module Provides Summaries to UI**: The Personalization Module sends these summaries to the User Interface.
+
+16. **UI Displays Summaries to User**: Finally, the User Interface displays the research summaries to the user, completing the process.
