@@ -47,6 +47,8 @@ Use these to make decisions about trade-offs.
 
 ## UI
 
+![Feed mockup](MarinerUI.png)
+
 ## System Design
 
 ### System Context
@@ -227,6 +229,14 @@ sequenceDiagram
     end
 ```
 
+### Front end
+
+The web interface uses React.js. Articles are loaded in batches into the list.
+
+### Back end
+
+The web server uses Ruby on Rails. Utility scripts are written in Ruby.
+
 ## Data Design
 
 Given your requirements and the system flow described, here's a simple yet extensible data design that could be implemented in MongoDB, which is well-suited for handling varied and evolving data structures like this.
@@ -400,40 +410,16 @@ For future-proofing the monitoring and alerting setup, consider using tools that
 
 ## Security
 
-TODO:
+TODO: review OWASP top 10
 
-- OWASP top 10
-- LLM security
-
-Security is a critical component of the Mariner system. Given its architecture, including the use of Ruby on Rails, MongoDB, and interactions with external systems, the following security measures should be implemented:
-
-### 1. **Application Security**
-
-- **Authentication and Authorization**: Implement strong authentication mechanisms to control access to the Mariner system. Use role-based access control (RBAC) to manage what authenticated users can see and do within the application.
-- **Input Validation**: Protect against common web vulnerabilities like SQL injection (even though MongoDB is NoSQL, injection attacks can still occur) and cross-site scripting (XSS) by validating, sanitizing, and escaping user inputs.
-- **Secure Communication**: Ensure that all data transmitted between the client and server is encrypted using HTTPS to prevent eavesdropping and man-in-the-middle attacks.
-
-### 2. **Database Security**
-
-- **Access Controls**: Restrict database access to only the Mariner application and authorized personnel. Use MongoDB’s built-in roles to limit access based on the principle of least privilege.
-- **Data Encryption**: Use encryption at rest to protect stored data, and encryption in transit to secure data being transferred to and from the database.
-- **Regular Audits**: Perform regular audits of database access and activities to detect and respond to unauthorized access or anomalies.
-
-### 3. **External Systems Security**
-
-- **API Security**: Secure communication with external APIs (like ArXiv and GPT Service) using API keys or OAuth tokens. Ensure that these keys are kept secure and have limited permissions to minimize potential damage if compromised.
-- **Service Monitoring**: Regularly monitor the availability and integrity of external services to quickly detect and respond to outages or changes that could impact Mariner.
-
-### 4. **Secrets Management**
+### Secrets Management
 
 - **Environment Variables**: While using `.env` files and environment variables is a good practice, ensure that `.env` files are not committed to version control systems by including them in `.gitignore`.
 - **Secure Storage**: Use secrets management tools (like HashiCorp Vault, AWS Secrets Manager, or environment-specific secrets management in hosting platforms) to securely store and access secrets like API keys, database credentials, and other sensitive configuration details.
 - **Access Controls**: Limit access to environment variables and configuration files to only parts of the system and personnel that need them.
 
-### 5. **Security Best Practices**
+### Application
 
-- **Code Reviews and Audits**: Conduct regular code reviews and security audits to identify and remediate security vulnerabilities.
-- **Security Training**: Ensure that the development and operations teams are trained in security best practices and are aware of common security threats.
-- **Patch Management**: Keep all parts of the system, including the Rails framework, MongoDB, and any third-party libraries, up to date with the latest security patches.
+TODO: what does Rails provide out of the box?
 
-By integrating these security measures into the design and development of Mariner, the system can protect against common security threats and vulnerabilities, ensuring the integrity, confidentiality, and availability of the system and its data.
+### LLM security
