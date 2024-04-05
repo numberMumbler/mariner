@@ -162,106 +162,70 @@ While initially deployed as a single instance, With MongoDB's potential for redu
 
 ## Data Design
 
-### Data Model Design
+### Queries
 
-#### 1. Articles Collection
+- **Check Article Processing Status**: This query is critical to ensure that each article is only processed once for summarization, preventing duplicate efforts by different Summary Generator instances. It checks the article's current status before processing and retrieves a single record, requiring fast and indexed access to the `Article ID`.
 
-- **\_id**: MongoDB provided unique identifier (can be used as the arXiv ID).
-- **title**: String
-- **authors**: Array of strings
-- **abstract**: String
-- **topics**: Array of strings
-- **url**: String (URL to the arXiv entry)
-- **submittedDate**: Date
-- **status**: String (e.g., "RETRIEVED", "SUMMARIZED")
-- **statusDate**: Date (date when the status was last updated)
-- **summaries**: Array of objects containing:
-  - **userId**: String or ObjectId (to link to a User collection)
-  - **summaryText**: String
-  - **relevanceScore**: Number
-  - **interests**: Array of strings (topics or interests this summary caters to)
+- **Add New Article Metadata**: After fetching new articles from arXiv, the system stores their metadata. This operation, which inserts multiple records per batch, is vital for keeping the database current and ready for summarization processes.
 
-#### 2. Users Collection
+- **Retrieve Article for Summarization**: Regularly, the system selects the next article to summarize, ensuring that no article is processed more than once, even when multiple Summary Generator instances are active. This step is crucial for maintaining an efficient and non-redundant summarization workflow.
 
-- **\_id**: MongoDB provided unique identifier
-- **name**: String
-- **email**: String
-- **interests**: Array of strings
-- **actions**: Array of objects containing:
-  - **articleId**: ObjectId (reference to Articles collection)
-  - **action**: String (e.g., "FAVORITE", "ARCHIVE", "REMOVE")
-  - **actionDate**: Date
+- **Insert Custom Summary**: Post-summarization, each custom summary is added to the user’s feed, involving a single record insertion for each user-article pair. This process highlights the importance of quick database operations and the need for effective indexing on `User ID` and `Article ID`.
 
-### System Flow Integration
+- **Retrieve User Review Feed**: Frequently accessed, this query populates the user's review feed with the latest summaries. It is optimized to return the most recent articles, using pagination to manage the data volume and enhance the user experience.
 
-- When new papers are fetched from arXiv, they are added to the Articles collection with the status "RETRIEVED". The statusDate is set to the current date.
-- Another process updates the status to "SUMMARIZED" after generating the summary, also updating the statusDate to reflect this change.
-- Users can view, favorite, archive, or remove articles through the interface, which updates their actions in the Users collection.
+- **Bookmark an Article**: Users regularly bookmark articles, necessitating a system that can quickly update the bookmark status in the user’s profile. This operation requires efficient database access to update single records promptly.
 
-### Design Justification and Extension
+- **Archive an Article**: Similar to bookmarking, archiving is a common user action that removes articles from the active feed. The system needs to quickly update the archive status for each article, ensuring a seamless user experience.
 
-- **Scalability**: MongoDB’s flexible schema allows for easy addition of new fields or changes to existing structures, facilitating future expansions.
-- **Performance**: By storing summaries within the Articles collection, you minimize the need for extensive joins or lookups, which suits MongoDB's document-oriented nature.
-- **User-Specific Relevance**: Storing a relevance score and interests per summary allows for personalized content filtering without complex query logic.
-- **Status Tracking**: The status and statusDate fields help track the lifecycle of an article's processing and identify bottlenecks or issues in the workflow.
-- **User Actions**: Keeping user actions linked with articles in the Users collection simplifies user-specific operations and preferences management.
+- **Load Bookmarked Articles**: This query retrieves all articles bookmarked by the user, which, while less frequent than feed loading, is essential for a positive user experience. The system must efficiently handle potentially large datasets of bookmarked content.
 
-### Potential Extensions
+- **Load Archived Articles**: Accessing archived articles is less frequent but can involve a significant number of records. Efficient data retrieval mechanisms are necessary to manage the potentially extensive archive without compromising performance.
 
-- As the user base grows, you might want to introduce indexing on frequently queried fields (e.g., status, topics, userId, articleId) to enhance performance.
-- For handling more complex workflows or a significant increase in data volume, consider introducing message queuing or stream processing systems for better load management and real-time processing capabilities.
+These queries form the operational backbone of Mariner, ensuring that users have timely access to relevant and personalized academic content while maintaining system efficiency and data integrity.
+Based on the requirements and considerations discussed, here’s a proposed design for the MongoDB collections and records, including indexing strategies:
 
-This design provides a solid foundation that meets your current requirements while offering flexibility for future enhancements and scalability.
+### Data Lifecycle Management
 
-In the system described, the following queries are likely to be involved, categorized by their expected frequency of use and strategies for optimization.
+In Mariner, the management of data, specifically summary documents, is designed to optimize storage use and ensure content relevance through a well-defined lifecycle. Summaries are initially set to expire 8 days after creation, providing users with sufficient time to review the latest research findings. If a user archives a summary, indicating lesser immediate value, its expiration is shortened to 3 hours, preparing it for automatic deletion unless reconsidered within that timeframe. Conversely, summaries returned to the review feed are reassigned the 8-day expiration period, reflecting their restored significance. Bookmarked summaries, valued for long-term reference, are exempt from automatic expiration, remaining indefinitely in the system. This automated lifecycle, governed by user interaction, enables Mariner to maintain an efficient and relevant database, dynamically adjusting to user preferences and engagement.
 
-### Most Frequent Queries
+### Collections
 
-1. **Retrieving new entries for processing**
+1. **Articles Collection** Stores metadata for each article fetched from the Article Sources.
 
-   - Query to find articles with a status of "RETRIEVED".
-   - Used frequently as part of the automated process to update the status to "SUMMARIZED" after processing.
-   - **Optimization**: Index on `status` to speed up retrieval of articles awaiting processing.
+   - `_id`: MongoDB's default unique identifier (Indexed).
+   - `title`: String
+   - `authors`: Array of strings
+   - `subject`: String
+   - `publicationDate`: Date (Indexed)
+   - `sourceURL`: String
+   - `contentURL`: String
+   - `status`: String (`pending`, `summarized`) (Indexed)
 
-2. **Summarizing articles**
+2. **Summaries Collection** Stores user-specific summaries.
 
-   - Query to fetch the full text of articles for summarization.
-   - Runs frequently as part of the summary generation process.
-   - **Optimization**: Since this will likely fetch the entire document, ensure efficient retrieval by having a good storage setup and potentially caching mechanisms for frequently accessed data.
+   - `_id`: MongoDB's default unique identifier (Indexed).
+   - `articleMetadata`: Object
+   - `title`: String
+   - `authors`: Array of strings
+   - `subject`: String
+   - `publicationDate`: Date
+   - `sourceURL`: String
+   - `contentURL`: String
+   - `userId`: ObjectId (Indexed)
+   - `text`: String
+   - `createdDate`: Date (Indexed)
+   - `status`: String (`in_review`, `archived`) (Indexed)
+   - `isBookmarked`: Boolean (Indexed)
+   - `expirationDate`: Date (TTL Index)
 
-3. **User-specific article retrieval**
-   - Query to display articles and summaries based on user interests and actions (favorites, archives, removals).
-   - Highly frequent as users interact with the system to read summaries.
-   - **Optimization**: Index on `summaries.userId` and `actions.articleId` to quickly fetch articles related to a specific user. Consider also indexing `interests` if filtering by user interest is common.
+TTL Index: Set on the expirationDate field to automatically remove summaries after their relevant period (8 days for regular summaries and 3 hours for archived ones) unless marked as bookmarked.
 
-### Occasionally Used Queries
-
-1. **Status update for articles**
-
-   - Updating the `status` and `statusDate` of an article after it has been processed.
-   - Occurs less frequently, corresponding to the rate of article processing and summarization.
-   - **Optimization**: While not accessed as often, ensuring the `status` field is indexed supports quick updates.
-
-2. **User action updates (favorite, archive, remove)**
-   - Inserting or updating user actions related to articles.
-   - Occurs as users interact with the system, but less frequently than viewing articles.
-   - **Optimization**: Using an array of actions within the Users collection can minimize the complexity of these queries. Indexing on `actions.articleId` can speed up updates and retrievals of user actions.
-
-### Rare Queries
-
-1. **Periodic maintenance tasks**
-   - Queries for system maintenance, such as cleaning up old data or analyzing usage patterns.
-   - Very infrequent, potentially running as background tasks during off-peak hours.
-   - **Optimization**: These tasks usually don’t require immediate execution, so they can be scheduled during low-load periods to minimize impact on system performance.
-
-### Optimization Strategies
-
-- **Indexing**: Create indexes on the most frequently queried fields to reduce lookup times. This is crucial for fields like `status`, `userId`, and `articleId`.
-- **Balanced Schema Design**: While MongoDB is schema-less, designing a balanced document structure that minimizes unnecessary data duplication can improve performance.
-- **Caching**: Implement caching for frequently accessed data, especially for articles that are viewed and summarized repeatedly.
-- **Background Processing**: Schedule maintenance and low-priority tasks during off-peak hours to avoid impacting system performance during high-usage periods.
-
-By prioritizing these optimizations, the system can handle frequent operations efficiently while retaining the flexibility to accommodate future extensions and increased workload.
+3. **Users Collection** Manages user data.
+   - `_id`: MongoDB's default unique identifier (Indexed).
+   - `username`: String (Indexed)
+   - `email`: String
+   - `interests`: Array of strings
 
 ## Testing
 
