@@ -182,12 +182,9 @@ While initially deployed as a single instance, With MongoDB's potential for redu
 
 - **Load Archived Articles**: Accessing archived articles is less frequent but can involve a significant number of records. Efficient data retrieval mechanisms are necessary to manage the potentially extensive archive without compromising performance.
 
-These queries form the operational backbone of Mariner, ensuring that users have timely access to relevant and personalized academic content while maintaining system efficiency and data integrity.
-Based on the requirements and considerations discussed, here’s a proposed design for the MongoDB collections and records, including indexing strategies:
-
 ### Data Lifecycle Management
 
-In Mariner, the management of data, specifically summary documents, is designed to optimize storage use and ensure content relevance through a well-defined lifecycle. Summaries are initially set to expire 8 days after creation, providing users with sufficient time to review the latest research findings. If a user archives a summary, indicating lesser immediate value, its expiration is shortened to 3 hours, preparing it for automatic deletion unless reconsidered within that timeframe. Conversely, summaries returned to the review feed are reassigned the 8-day expiration period, reflecting their restored significance. Bookmarked summaries, valued for long-term reference, are exempt from automatic expiration, remaining indefinitely in the system. This automated lifecycle, governed by user interaction, enables Mariner to maintain an efficient and relevant database, dynamically adjusting to user preferences and engagement.
+In Mariner, the management of data, specifically summary documents, is designed to optimize storage use and ensure content relevance through a well-defined lifecycle. Summaries are initially set to expire 8 days after creation, providing users with sufficient time to review the latest research findings. If a user archives a summary, indicating lesser immediate value, its expiration is shortened to 3 hours, preparing it for automatic deletion unless reconsidered within that timeframe. Conversely, summaries returned to the review feed are reassigned the 8-day expiration period, reflecting their restored significance. Bookmarked summaries, valued for long-term reference, are exempt from automatic expiration, remaining indefinitely in the system.
 
 ### Collections
 
@@ -231,36 +228,25 @@ TTL Index: Set on the expirationDate field to automatically remove summaries aft
 
 ### Unit Testing
 
-For unit testing in Ruby, the most common framework is RSpec. It provides a rich and flexible toolset for testing Ruby applications and is well-suited for behavior-driven development (BDD).
+In Mariner, unit testing is conducted using RSpec to ensure code quality and functionality, with a target of achieving at least 80% test coverage. This approach guarantees that a significant portion of the codebase is verified for correctness. Adherence to coding standards is enforced through RuboCop, ensuring that all code follows established best practices and style guidelines. This systematic testing strategy is essential for maintaining a high-quality, reliable codebase as Mariner evolves.
 
-- **Code Coverage**: While 100% code coverage is ideal, it might not always be practical, especially for areas heavily interfacing with external services or the database. Aim for a code coverage target of around 80-90%, prioritizing critical paths and business logic. Tools like SimpleCov can be used with RSpec to track code coverage.
-- **Mocking and Stubbing**: Given Mariner’s reliance on external services, use mocking and stubbing to simulate external API calls within unit tests. This approach ensures tests remain fast and reliable without depending on external systems.
+### Deployment Testing
 
-### Integration Testing
+For deployment, a series of integration tests using Rails System Tests are defined to verify the system’s end-to-end functionality and interaction with external services:
 
-Integration tests should focus on workflows that are critical to Mariner’s operation, specifically the interaction between components and with external systems:
+1. **Article Fetching Workflow**: Tests ensure that the Fetcher accurately retrieves and stores new articles from arXiv, effectively handling duplicates.
 
-- **Summarization Workflow**: Test the entire process from fetching articles from the ArXiv database, summarizing them with the GPT service, and storing the results in the Mariner Database.
-- **User Interaction Workflow**: Test how the system handles user interactions, such as fetching personalized content, updating preferences, and displaying summaries.
-- **Database Integration**: Ensure that the application correctly interacts with MongoDB, including reading and writing data, and handling database errors gracefully.
+2. **Article Summarization Process**: These tests validate the Summary Generator's ability to correctly process articles, generate summaries via the OpenAI API, and store the results appropriately.
 
-For integration testing, tools like Capybara can be used alongside RSpec in Ruby, providing a way to simulate user interactions and test the integration of various system components.
+3. **User Review Feed Display**: Testing confirms the website’s capability to fetch and display the latest summaries, implementing efficient pagination.
 
-### CI/CD and Deployment Testing
+4. **Bookmarking and Archiving Articles**: Functionality tests for bookmarking and archiving verify that these user actions are correctly reflected in the database and influence the feed visibility.
 
-For continuous integration and deployment (CI/CD), a suite of tests should be in place to ensure that new changes don't break existing functionality and that the code is always production-ready:
+5. **Retrieval of Bookmarked and Archived Articles**: Ensures that users can reliably access their bookmarked and archived articles, with the system presenting the correct data.
 
-- **Automated Test Suite**: Configure a CI tool (like Jenkins, GitHub Actions, or GitLab CI) to run the full suite of unit and integration tests on every commit or pull request. This setup helps in identifying issues early in the development cycle.
-- **Deployment Pipeline Tests**: Include tests in the deployment pipeline to verify that the application can be successfully deployed to a staging or production environment. This might include smoke tests to quickly check the health and basic functionality of the deployed application.
-- **Performance and Load Testing**: Consider incorporating basic performance and load testing in the CI/CD pipeline, especially for critical paths that could be impacted by scalability issues.
+6. **Interest Area Filtering**: Tests check that summaries are accurately filtered and presented based on the user’s selected interest areas, ensuring personalized content delivery.
 
-### Best Practices
-
-- **Test Automation**: Automate as much of the testing process as possible to reduce manual effort and increase reliability.
-- **Continuous Testing**: Integrate testing into the continuous integration process to ensure that issues are detected and addressed promptly.
-- **Quality Gates**: Establish quality gates in the CI/CD pipeline, such as code coverage thresholds or mandatory code review approvals, to ensure that only high-quality code is deployed to production.
-
-By adhering to these testing practices, Mariner can maintain high standards of quality and reliability, facilitating a smooth and efficient development lifecycle.
+7. **Concurrency and Locking in Summary Generation**: Validates that multiple instances of the Summary Generator can operate concurrently without processing conflicts or generating duplicate summaries.
 
 ## Monitoring
 
