@@ -35,9 +35,7 @@ Use these to make decisions about trade-offs.
 
 ### Key Use Cases
 
-- As an academic researcher, I want to receive summaries of recent papers in my field, so that I can quickly stay updated on new findings without reading each paper in full.
-- As a professional in a technical industry, I want to explore research outside my immediate area, so that I can gain interdisciplinary insights relevant to my work.
-- As a student, I want to easily access simplified explanations of complex research, so that I can enhance my learning and understanding of advanced topics.
+- As a user, I want to quickly review recently published articles, so I can keep up with new research that is coming out.
 - As a user, I want to bookmark articles of interest, so that I can easily find and read them later in detail.
 - As a user, I want to archive articles I'm not interested in, so that they no longer clutter my feed and I can focus on more relevant content.
 - As a user, I want to adjust my interest areas, so that the summaries in my feed reflect my changing research interests and needs.
@@ -47,7 +45,11 @@ Use these to make decisions about trade-offs.
 
 ## UI
 
-![Feed mockup](MarinerUI.png)
+![Review section mockup](MarinerUI.png)
+
+The user's main page is a list of research articles, called the Review section. For each article, they see the title, authors, and a link to the source article (e.g. the entry on arXiv's website). There is a customized summary that highlights things the user might be interested in. The user might click on the link and read the full paper if they are interested. The user might also click the bookmark icon, so they can quickly find this article later. Most of the time, the user will click the archive icon, because the summary is enough for them to be aware.
+
+Bookmarking an article flags it, but it stays where it is. Archiving an article moves it from the review feed to the Archived section. Users can view all bookmarked articles in the Bookmarked section.
 
 ## System Design
 
@@ -55,191 +57,110 @@ Use these to make decisions about trade-offs.
 
 ```mermaid
 C4Context
-title System Context Diagram for Mariner
+  title Mariner System Context Diagram
 
-Person(user, "User", "Interacts with Mariner to get personalized research summaries.")
-System_Ext(arXiv, "ArXiv Database", "External source of academic articles.")
-System_Ext(gpt, "GPT Service", "External service for summarizing articles.")
-System(mariner, "Mariner", "System that provides personalized research paper summaries.")
+  Person(user, "User", "Uses Mariner to access personalized summaries of academic research")
+  System_Boundary(mariner_system, "Mariner") {
+    System(mariner, "Website", "Provides personalized research paper summaries")
+    SystemDb(marinerDB, "MarinerDB", "Stores articles, summaries, and user preferences")
+    System(summary_generator, "Summary Generator", "Generates custom summaries for each user")
+    System(fetcher, "Fetcher", "Retrieves new articles from Article Sources")
+  }
+  System_Boundary(article_sources, "Article Sources") {
+    System_Ext(arXiv, "arXiv", "Source of academic articles")
+  }
+  System_Ext(openai, "OpenAI API", "Provides AI-powered summarization services")
 
-Rel(user, mariner, "Uses", "down")
-Rel(mariner, arXiv, "Fetches articles from", "left")
-Rel(mariner, gpt, "Sends articles to for summarization", "right")
-Rel_R(gpt, mariner, "Returns summarized articles to", "right")
-Rel_R(mariner, user, "Provides personalized summaries to", "down")
-
-
+  Rel(user, mariner, "Interacts with")
+  Rel(mariner, marinerDB, "Stores and retrieves user data, preferences, and summaries")
+  Rel(fetcher, arXiv, "Fetches new articles from")
+  Rel(fetcher, marinerDB, "Stores article metadata in")
+  Rel(summary_generator, marinerDB, "Queries for articles to summarize")
+  Rel(summary_generator, openai, "Uses for generating summaries")
+  Rel(marinerDB, summary_generator, "Provides articles for summarization")
+  Rel(summary_generator, marinerDB, "Stores generated summaries in")
+  Rel(mariner, user, "Delivers summaries to")
 ```
 
-TODO: (incorrect markup, but this idea) Directional modifiers like "down", "left", and "right" are used in the Rel commands to guide the arrows’ paths, helping to separate the entities and make the diagram clearer.
-By arranging external systems on either side of Mariner (arXiv to the left and GPT Service to the right), the diagram can visually represent the flow of data in a more organized manner.
+- **User and Mariner**: Users interact with Mariner to view personalized summaries of academic research. They can bookmark articles of interest or archive those they are done reviewing.
+- **Mariner and MarinerDB**: Mariner stores user data, preferences, and generated summaries in MarinerDB. It also retrieves this information to present personalized content to users.
+- **Fetcher and arXiv**: The Fetcher component retrieves new articles from arXiv. It is designed to handle the high volume of articles published monthly, ensuring Mariner remains up-to-date with current research.
+- **Fetcher and MarinerDB**: After fetching, Fetcher stores the article metadata, including Article ID, Title, Authors, Subject, Source URL, and Content URL, in MarinerDB.
+- **Summary Generator and MarinerDB**: The Summary Generator queries MarinerDB to find articles that need summarizing. It ensures that each user gets custom summaries based on their interests.
+- **Summary Generator and OpenAI API**: Utilizing the OpenAI API, the Summary Generator creates personalized summaries for the articles. This process involves downloading the article's content, summarizing it, and then deleting the downloaded files to manage storage efficiently.
+- **MarinerDB and Summary Generator**: MarinerDB provides articles to the Summary Generator for summarization, ensuring that only new and relevant articles are processed for each user.
+- **Mariner and User**: Finally, Mariner delivers these summaries to the user, maintaining a feed that is relevant, up-to-date, and tailored to the user's specified interests.
 
-### Components
-
-```mermaid
-classDiagram
-    class Mariner {
-        +User Interface
-        +Personalization Module
-        +Content Fetcher
-        +Summarization Engine
-        +Database
-    }
-    class User_Interface {
-        +Display Summaries()
-        +Fetch User Preferences()
-    }
-    class Personalization_Module {
-        +Filter Content()
-        +Adapt Feeds()
-    }
-    class Content_Fetcher {
-        +Retrieve Articles()
-        +Update Database()
-    }
-    class Summarization_Engine {
-        +Summarize Articles()
-        +Store Summaries()
-    }
-    class Database {
-        +Store User Data()
-        +Store Articles and Summaries()
-    }
-
-    Mariner --> User_Interface : Uses
-    Mariner --> Personalization_Module : Uses
-    Mariner --> Content_Fetcher : Uses
-    Mariner --> Summarization_Engine : Uses
-    Mariner --> Database : Uses
-
-```
+In Mariner, aggressive removal of archived summaries and limiting the user's review feed to the most recent articles help manage storage and ensure users are presented with the most relevant and current research, aligning with Mariner’s goals of providing timely and pertinent academic insights.
 
 ### Sequence Diagram
 
 ```mermaid
 sequenceDiagram
-    participant ArXiv as ArXiv Database
-    participant Fetcher as Content Fetcher
-    participant Summarizer as Summarization Engine
+    actor User
+    participant Website as Mariner Website
+    participant Fetcher
     participant MarinerDB as Mariner Database
-    participant User as User
+    participant SummaryGenerator as Summary Generator
+    participant OpenAI as OpenAI API
+    participant ArXiv as arXiv
 
-    Fetcher->>ArXiv: 0. Requests newest articles
-    ArXiv->>Fetcher: 1. Provides new articles
-    Fetcher->>Summarizer: 2. Sends article for summarization
-    Summarizer->>MarinerDB: 3. Stores summarized content
-
-    loop Check for updates
-        User->>MarinerDB: Visits feed
-        MarinerDB->>User: Displays article summary
+    User->>Website: Access Mariner
+    loop Check for New Articles
+        Fetcher->>ArXiv: Request new articles
+        ArXiv->>Fetcher: Return new articles
+        Fetcher->>MarinerDB: Store article metadata
     end
+    loop Summary Generation
+        MarinerDB->>SummaryGenerator: Provide articles needing summaries
+        SummaryGenerator->>MarinerDB: Retrieve full articles
+        SummaryGenerator->>OpenAI: Send text for summarization
+        OpenAI->>SummaryGenerator: Return summaries
+        SummaryGenerator->>MarinerDB: Store summaries
+    end
+    Website->>MarinerDB: Retrieve summaries for User
+    Website->>User: Display summaries
 ```
 
-In this sequence:
+- **User Interaction**: The user accesses the Mariner Website to view summaries or manage their interests.
+- **Fetching New Articles**: The Fetcher periodically requests new articles from arXiv, which are then returned and stored in the Mariner Database.
+- **Summary Generation**:
+  - The Mariner Database provides articles that need summarizing to the Summary Generator.
+  - The Summary Generator retrieves the full text of these articles from the Mariner Database.
+  - It then sends this text to the OpenAI API for summarization.
+  - The OpenAI API processes the text and returns the summaries to the Summary Generator.
+  - The Summary Generator saves these summaries in the Mariner Database.
+- **Display Summaries**: Finally, the Mariner Website retrieves the summaries from the Mariner Database and displays them to the user.
 
-1. The **ArXiv Database** provides a new article to the **Content Fetcher**.
-2. The **Content Fetcher** sends the article to the **Summarization Engine** for processing.
-3. The **Summarization Engine** creates a summary of the article and stores it in the **Mariner Database**.
-4. The **User** visits their feed, which triggers the **Mariner Database** to display the latest article summary.
+This sequence diagram provides a clear step-by-step visualization of how new articles are ingested and processed to generate summaries in the Mariner system, highlighting the interaction between different components of the system and external services.
 
-```mermaid
-sequenceDiagram
-    participant User as User
-    participant UI as User Interface
-    participant Personalizer as Personalization Module
-    participant Fetcher as Content Fetcher
-    participant Summarizer as Summarization Engine
-    participant MarinerDB as Database
-    participant ArXiv as ArXiv Database
-    participant GPT as External GPT Service
+### Front End Implementation
 
-    note right of ArXiv: External
-    note right of GPT: External
+React.js is selected for the Mariner front end, leveraging its component-based structure to efficiently handle dynamic updates, such as real-time summary modifications. This choice supports streamlined development and future maintenance, reducing the need for ongoing adjustments and aligning with the goal of automation.
 
-    User->>+UI: Access Mariner
-    UI->>+Personalizer: Request Content
-    Personalizer->>+MarinerDB: Fetch User Preferences
-    MarinerDB-->>-Personalizer: User Data
+The multi-page architecture, as opposed to a single-page application, enhances initial load performance and system stability, ensuring reliability for end-users. Each section, like the review feed and bookmarked articles, is managed separately, facilitating quicker recovery from disruptions and contributing to overall system resilience.
 
-    loop Fetch and Summarize Articles
-        Fetcher->>+ArXiv: Query for new articles
-        ArXiv-->>-Fetcher: Return articles
-        Fetcher->>MarinerDB: Store new articles
+This approach also allows for clear scalability and the integration of new functionalities, addressing the extensibility priority. As Mariner evolves, new sections or features can be added with minimal disruption to the existing infrastructure.
 
-        Summarizer->>MarinerDB: Check for unsummarized articles
-        MarinerDB-->>Summarizer: Unsummarized articles
-        Summarizer->>+GPT: Send articles for summarization
-        GPT-->>-Summarizer: Return summaries
-        Summarizer->>MarinerDB: Store summaries
-    end
+By adopting React.js and avoiding the complexities of SPA architecture, Mariner maintains simplicity in its front-end design. This ensures that the UI remains straightforward to update and manage, resonating with the simplicity priority by minimizing unnecessary code and focusing on core functionalities.
 
-    Personalizer->>MarinerDB: Retrieve personalized summaries
-    MarinerDB-->>Personalizer: Summarized Content
-    Personalizer-->>-UI: Personalized Summaries
-    UI-->>-User: Display Summaries
-```
+### Back End Implementation
 
-1. **User Accesses Mariner**: The user initiates the process by accessing the Mariner User Interface (UI).
-2. **UI Requests Content**: The UI requests personalized content for the user from the Personalization Module.
+Ruby on Rails is the chosen framework for Mariner's back end, capitalizing on its comprehensive set of features that streamline web application development. This choice supports a streamlined initial setup and future maintenance efficiency, fitting well with the need for a system that automates complex processes seamlessly. The framework's robustness and proven track record ensure the back end's reliability, particularly important as Mariner evolves and scales.
 
-3. **Personalization Module Fetches User Preferences**: The Personalization Module queries the Mariner Database to fetch the user's preferences and interaction history.
+Mariner will operate as a monolith, simplifying development and reducing the complexities of deployment and operation. This single-instance model is sufficient for the expected user load during the closed beta and simplifies the transition to a load-balanced architecture when user demand increases. Such a setup allows for straightforward scalability and system enhancement without immediate architectural overhauls.
 
-4. **Database Returns User Data**: The Mariner Database returns the relevant user data to the Personalization Module.
+ArxivFetcher and Summary Generator will be integrated as background services within the Rails application, sharing models, logic, and configurations to promote code reuse and maintain consistency. ArxivFetcher will be scheduled as a cron job to run daily, ensuring up-to-date article retrieval without manual intervention. Summary Generator, designed for parallel processing, will be triggered periodically to manage workload efficiently, preparing for potential future scaling.
 
-5. **Content Fetcher Queries ArXiv for New Articles**: Periodically, the Content Fetcher queries the ArXiv Database to check for new research articles.
+By embedding these components within the Rails ecosystem, Mariner benefits from a cohesive, manageable codebase that adheres to a unified deployment strategy. This approach allows for distinct, scalable operations of each component, aligning with Mariner’s growth and expansion goals, and laying a foundation for a robust, user-centric service.
 
-6. **ArXiv Returns Articles**: The ArXiv Database provides the latest articles to the Content Fetcher.
+### Database
 
-7. **Fetcher Stores New Articles in Database**: The Content Fetcher stores the new articles in the Mariner Database for later processing.
+Mariner uses MongoDB. A document database's flexible schema accommodates the varying structures of the content and user data. This adaptability is crucial for Mariner's evolving needs, allowing for straightforward updates to the database schema without significant overhauls. MongoDB's performance with large datasets ensures that Mariner can handle the growing volume of articles and user interactions efficiently.
 
-8. **Summarization Engine Checks for Unsummarized Articles**: The Summarization Engine queries the Mariner Database to identify articles that have not yet been summarized.
-
-9. **Database Provides Unsummarized Articles**: The Mariner Database returns the list of unsummarized articles to the Summarization Engine.
-
-10. **Summarization Engine Sends Articles to External GPT Service**: The Summarization Engine sends these articles to an External GPT Service for summarization.
-
-11. **GPT Service Returns Summaries**: The External GPT Service processes the articles and returns their summaries to the Summarization Engine.
-
-12. **Summarizer Stores Summaries in Database**: The Summarization Engine stores the generated summaries in the Mariner Database.
-
-13. **Personalization Module Retrieves Personalized Summaries**: The Personalization Module then retrieves personalized summaries based on the user's preferences and history from the Mariner Database.
-
-14. **Database Provides Summarized Content**: The Mariner Database sends the personalized summaries back to the Personalization Module.
-
-15. **Personalization Module Provides Summaries to UI**: The Personalization Module sends these summaries to the User Interface.
-
-16. **UI Displays Summaries to User**: Finally, the User Interface displays the research summaries to the user, completing the process.
-
-```mermaid
-sequenceDiagram
-    participant Fetcher as Content Fetcher
-    participant DB as Mariner Database
-    participant Summarizer as Summarization Engine
-    participant GPT as External GPT Service
-    participant ArXiv as ArXiv Database
-
-    ArXiv->>Fetcher: Publishes new articles
-    Fetcher->>DB: Stores article metadata
-    loop Summarization Check
-        Summarizer->>DB: Queries for unsummarized articles
-        DB-->>Summarizer: Returns articles
-        Summarizer->>GPT: Sends articles for summarization
-        GPT-->>Summarizer: Provides summaries
-        Summarizer->>DB: Stores summaries
-    end
-```
-
-### Front end
-
-The web interface uses React.js. Articles are loaded in batches into the list.
-
-### Back end
-
-The web server uses Ruby on Rails. Utility scripts are written in Ruby.
+While initially deployed as a single instance, With MongoDB's potential for redundancy and scaling, Mariner has a robust foundation for feature expansions and user growth.
 
 ## Data Design
-
-Given your requirements and the system flow described, here's a simple yet extensible data design that could be implemented in MongoDB, which is well-suited for handling varied and evolving data structures like this.
 
 ### Data Model Design
 
