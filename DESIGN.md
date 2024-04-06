@@ -136,6 +136,8 @@ This sequence diagram provides a clear step-by-step visualization of how new art
 
 ### Front End Implementation
 
+Mariner will use SCSS to maintain a consistent look across pages.
+
 React.js is selected for the Mariner front end, leveraging its component-based structure to efficiently handle dynamic updates, such as real-time summary modifications. This choice supports streamlined development and future maintenance, reducing the need for ongoing adjustments and aligning with the goal of automation.
 
 The multi-page architecture, as opposed to a single-page application, enhances initial load performance and system stability, ensuring reliability for end-users. Each section, like the review feed and bookmarked articles, is managed separately, facilitating quicker recovery from disruptions and contributing to overall system resilience.
@@ -250,34 +252,26 @@ For deployment, a series of integration tests using Rails System Tests are defin
 
 ## Monitoring
 
-### Overview
+The monitoring strategy for Mariner is intentionally simple, aiming to ensure the core functions of fetching articles, generating summaries, and maintaining website availability are operational. We prioritize a low-maintenance approach that aligns with Mariner's low-stakes nature, focusing on key activities rather than extensive system metrics.
 
-Effective monitoring and alerting are crucial for maintaining the reliability and performance of Mariner. Given the application's architecture, including a Ruby on Rails web application, a MongoDB database, and interactions with external systems, we need to establish a basic monitoring setup that can be expanded in the future.
+**Article Fetching and Summarization Monitoring**
 
-### Key Components to Monitor
+- Endpoint: `/health/fetching_summarization`
+- This monitor checks that new articles are being fetched from arXiv and that summaries are being generated within expected timeframes, typically every 36 hours. It ensures that both core processes — fetching and summarization — are functioning correctly, indicating that the system is actively processing and updating content.
 
-#### 1. **Application Performance (Rails)**
+**Website Availability Monitoring**
 
-- **Response Times**: Monitor the average time it takes for the application to respond to requests, which can help identify performance degradations.
-- **Error Rates**: Track the frequency of application errors or exceptions to catch and address issues promptly.
-- **Request Throughput**: Measure the number of requests handled by the application over time to understand traffic patterns and potential stress points.
+- Endpoint: `/up`
+- The website's availability is monitored through a simple endpoint that checks for startup issues and overall website health. This endpoint serves as an immediate indicator of the web server's operational status, ensuring that the Mariner website is accessible to users and functioning as intended.
 
-#### 2. **Database Performance (MongoDB)**
+**Database and External Service Checks**
 
-- **Query Performance**: Monitor the execution time of database queries to identify slow queries that may need optimization.
-- **Connection Counts**: Keep track of the number of active connections to the database to prevent connection overflows.
-- **Resource Utilization**: Monitor the database server's CPU, memory, and disk usage to detect potential bottlenecks or resource constraints.
+- Endpoint: `/health/database_external`
+- This monitoring function assesses the health and connectivity of MarinerDB and critical external services like the OpenAI API. It confirms the system's ability to interact with the database and external APIs, crucial for ongoing article summarization and user interaction. These checks help detect and address potential issues in data access or external service integration.
 
-#### 3. **External Systems Interactions**
+### Alerts
 
-- **API Response Times**: Track the response times of external systems (ArXiv and GPT Service) to detect latency issues or unavailability.
-- **API Error Rates**: Monitor the error rates of API calls to external services to quickly identify integration issues or service disruptions.
-
-### Alerting
-
-Initially, setting up a simple status page that provides real-time visibility into the system's health and performance metrics can be sufficient. This page should display the status of key components and any notable issues detected by the monitoring system.
-
-For future-proofing the monitoring and alerting setup, consider using tools that allow for easy escalation. For example, if a critical performance metric exceeds a certain threshold, the system should support triggering alerts through emails or push notifications.
+Alerts will be triggered if health check endpoints indicate errors. These checks will occur every 5 minutes, with immediate notifications sent to the administrator's computer when a problem is detected.
 
 ## Security
 
@@ -294,3 +288,5 @@ TODO: review OWASP top 10
 TODO: what does Rails provide out of the box?
 
 ### LLM security
+
+https://platform.openai.com/docs/guides/safety-best-practices
