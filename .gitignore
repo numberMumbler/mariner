@@ -1,0 +1,20 @@
+*
+
+# General
+!README.md
+!LICENSE
+!.gitignore
+
+# Application
+!requirements.txt
+!*.py
+!*.json
+!daily_fetch.sh
+
+# Docker
+!docker-compose.yml
+!Dockerfile
+
+# Directories
+!*/
+env/

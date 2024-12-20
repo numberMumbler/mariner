@@ -1,0 +1,10 @@
+{
+  "sources": [
+    {
+      "name": "arXiv_cs",
+      "subject": "cs",
+      "source_type": "arxiv",
+      "url": "http://export.arxiv.org/rss/cs"
+    }
+  ]
+}
