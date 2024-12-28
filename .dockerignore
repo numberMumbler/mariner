@@ -1,0 +1,7 @@
+/.git/
+/env/
+/.container/
+/container/
+/output/
+/logs/
+/.env*

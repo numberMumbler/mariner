@@ -11,5 +11,5 @@ services:
     ports:
       - "8082:8082"
     volumes:
-      - ./container/output:/app/output
-      - ./container/logs:/app/logs
+      - ./.container/output:/app/output
+      - ./.container/logs:/app/logs

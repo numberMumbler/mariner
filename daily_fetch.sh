@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
 
 # Activate the virtual environment
-source env/bin/activate
+#source env/bin/activate
 
 # Set PYTHONPATH to the project root (script's directory)
 export PYTHONPATH="$SCRIPT_DIR"
